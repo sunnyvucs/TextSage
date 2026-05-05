@@ -1,0 +1,11 @@
+# Table of Contents keyword list
+# Add or remove keywords — one per line
+# Lines starting with # are ignored
+CONTENTS
+CONTENT
+TABLE OF CONTENTS
+INDEX
+CHAPTER INDEX
+CONTENTS PART I
+CONTENTS PART II
+CONTENTS OF
