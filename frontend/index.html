@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AITutor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #21253a;
+      --border: #2e3352;
+      --accent: #6c63ff;
+      --accent2: #48b0f7;
+      --text: #e8eaf6;
+      --text-dim: #7c82a8;
+      --user-bubble: #1e2a4a;
+      --bot-bubble: #1a1d27;
+      --success: #4caf50;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .logo { font-size: 22px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
+    .logo span { color: var(--accent2); }
+
+    .selectors { display: flex; gap: 12px; margin-left: auto; align-items: center; }
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 32px 7px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237c82a8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      min-width: 140px;
+    }
+    select:focus { outline: none; border-color: var(--accent); }
+    select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #555; flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .status-dot.connected { background: var(--success); }
+
+    /* ── Main layout ── */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Sidebar (images) ── */
+    aside {
+      width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .aside-title {
+      padding: 14px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #image-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .img-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .img-card:hover { border-color: var(--accent); }
+    .img-card img { width: 100%; display: block; max-height: 160px; object-fit: contain; background: #111; }
+    .img-caption {
+      padding: 6px 8px;
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+    .img-page { font-size: 10px; color: var(--accent2); margin-top: 2px; }
+    #no-images {
+      color: var(--text-dim);
+      font-size: 13px;
+      text-align: center;
+      margin-top: 40px;
+      padding: 0 16px;
+      line-height: 1.6;
+    }
+
+    /* ── Chat area ── */
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scroll-behavior: smooth;
+    }
+
+    /* Welcome screen */
+    .welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 16px;
+      color: var(--text-dim);
+      text-align: center;
+      padding: 40px;
+    }
+    .welcome-icon { font-size: 56px; }
+    .welcome h2 { color: var(--text); font-size: 22px; }
+    .welcome p { font-size: 14px; line-height: 1.6; max-width: 380px; }
+
+    /* Bubbles */
+    .msg { display: flex; gap: 12px; align-items: flex-start; max-width: 820px; }
+    .msg.user { flex-direction: row-reverse; align-self: flex-end; }
+    .msg.bot { align-self: flex-start; }
+
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .msg.user .avatar { background: var(--accent); }
+    .msg.bot .avatar { background: var(--surface2); border: 1px solid var(--border); }
+
+    .bubble {
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      line-height: 1.7;
+      max-width: 680px;
+    }
+    .msg.user .bubble { background: var(--user-bubble); border: 1px solid #2a3a70; border-radius: var(--radius) 4px var(--radius) var(--radius); }
+    .msg.bot .bubble { background: var(--bot-bubble); border: 1px solid var(--border); border-radius: 4px var(--radius) var(--radius) var(--radius); }
+
+    /* Markdown-ish styling inside bubbles */
+    .bubble p { margin-bottom: 8px; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble strong { color: var(--accent2); }
+    .bubble code {
+      background: #0d1021;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 13px;
+      color: #f9a8d4;
+    }
+    .bubble pre {
+      background: #0d1021;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .bubble pre code { background: none; padding: 0; }
+    .bubble ul, .bubble ol { padding-left: 20px; margin: 6px 0; }
+    .bubble li { margin-bottom: 4px; }
+    .bubble h1, .bubble h2, .bubble h3 { color: var(--accent2); margin: 10px 0 6px; }
+
+    .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .typing-indicator span {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-dim);
+      animation: bounce 1.2s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+    /* ── Input bar ── */
+    .input-bar {
+      padding: 16px 24px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+    textarea {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      max-height: 150px;
+      min-height: 46px;
+      line-height: 1.5;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { outline: none; border-color: var(--accent); }
+    textarea::placeholder { color: var(--text-dim); }
+
+    button#send-btn {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      transition: background 0.2s, transform 0.1s;
+      flex-shrink: 0;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    button#send-btn:hover:not(:disabled) { background: #7c73ff; }
+    button#send-btn:active:not(:disabled) { transform: scale(0.96); }
+    button#send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    button#clear-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 0 14px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 12px;
+      height: 46px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    button#clear-btn:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── Image lightbox ── */
+    #lightbox {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: var(--radius); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">AI<span>Tutor</span></div>
+  <div class="selectors">
+    <select id="class-select">
+      <option value="">Loading classes...</option>
+    </select>
+    <select id="subject-select" disabled>
+      <option value="">Select subject</option>
+    </select>
+    <div class="status-dot" id="status-dot" title="API status"></div>
+  </div>
+</header>
+
+<div class="main">
+  <aside>
+    <div class="aside-title">Textbook Images</div>
+    <div id="image-panel">
+      <div id="no-images">Images related to the topic will appear here.</div>
+    </div>
+  </aside>
+
+  <div class="chat-area">
+    <div id="messages">
+      <div class="welcome" id="welcome-screen">
+        <div class="welcome-icon">📚</div>
+        <h2>Welcome to AITutor</h2>
+        <p>Select your class and subject above, then ask me anything from your textbook. I'll explain concepts, solve problems, and guide you step by step.</p>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <textarea id="question-input" placeholder="Ask a question about your subject..." rows="1"></textarea>
+      <button id="clear-btn" title="Clear chat">Clear</button>
+      <button id="send-btn" title="Send (Enter)">&#9658;</button>
+    </div>
+  </div>
+</div>
+
+<div id="lightbox">
+  <img id="lightbox-img" src="" alt="" />
+</div>
+
+<script>
+const API = '';  // same origin
+let history = [];
+let isStreaming = false;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const classes = await apiFetch('/api/classes');
+    const sel = document.getElementById('class-select');
+    sel.innerHTML = '<option value="">Select class</option>';
+    classes.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = `Class ${c}`;
+      sel.appendChild(o);
+    });
+    setStatus(true);
+  } catch (e) {
+    setStatus(false);
+    document.getElementById('class-select').innerHTML = '<option value="">API unavailable</option>';
+  }
+}
+
+async function loadSubjects(classNum) {
+  const sel = document.getElementById('subject-select');
+  sel.disabled = true;
+  sel.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const subjects = await apiFetch(`/api/subjects?class_number=${encodeURIComponent(classNum)}`);
+    sel.innerHTML = '<option value="">Select subject</option>';
+    subjects.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s; o.textContent = s;
+      sel.appendChild(o);
+    });
+    sel.disabled = false;
+  } catch (e) {
+    sel.innerHTML = '<option value="">Error loading subjects</option>';
+  }
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+document.getElementById('class-select').addEventListener('change', e => {
+  if (e.target.value) loadSubjects(e.target.value);
+  else {
+    const s = document.getElementById('subject-select');
+    s.innerHTML = '<option value="">Select subject</option>';
+    s.disabled = true;
+  }
+});
+
+document.getElementById('send-btn').addEventListener('click', sendMessage);
+document.getElementById('clear-btn').addEventListener('click', clearChat);
+
+document.getElementById('question-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+document.getElementById('question-input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+});
+
+// Lightbox
+document.getElementById('lightbox').addEventListener('click', () => {
+  document.getElementById('lightbox').classList.remove('open');
+});
+
+// ── Send message ──────────────────────────────────────────────────────────────
+async function sendMessage() {
+  if (isStreaming) return;
+
+  const question = document.getElementById('question-input').value.trim();
+  const classNum = document.getElementById('class-select').value;
+  const subject  = document.getElementById('subject-select').value;
+
+  if (!question) return;
+  if (!classNum || !subject) {
+    alert('Please select a class and subject first.');
+    return;
+  }
+
+  // Hide welcome screen
+  const welcome = document.getElementById('welcome-screen');
+  if (welcome) welcome.remove();
+
+  // Add user bubble
+  appendMessage('user', question);
+  document.getElementById('question-input').value = '';
+  document.getElementById('question-input').style.height = 'auto';
+
+  // Add history
+  history.push({ role: 'user', content: question });
+
+  // Clear images
+  clearImages();
+
+  // Bot typing bubble
+  const botId = 'bot-' + Date.now();
+  const botBubble = appendBotBubble(botId);
+
+  isStreaming = true;
+  document.getElementById('send-btn').disabled = true;
+
+  let botText = '';
+
+  try {
+    const resp = await fetch(`${API}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, class_number: classNum, subject, history: history.slice(0, -1) }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || 'Server error');
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE events are delimited by double newline
+      const events = buffer.split('\n\n');
+      buffer = events.pop(); // keep incomplete last event
+
+      for (const event of events) {
+        // each event may have multiple lines; find the data line
+        const dataLine = event.split('\n').find(l => l.startsWith('data: '));
+        if (!dataLine) continue;
+        const jsonStr = dataLine.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          const data = JSON.parse(jsonStr);
+          if (data.images) {
+            renderImages(data.images);
+          } else if (data.error) {
+            botBubble.innerHTML = `<span style="color:#f87171">&#9888; ${escapeHtml(data.error)}</span>`;
+            scrollToBottom();
+          } else if (data.token) {
+            botText += data.token;
+            botBubble.innerHTML = renderMarkdown(botText);
+            scrollToBottom();
+          } else if (data.done) {
+            history.push({ role: 'assistant', content: botText });
+          }
+        } catch (e) {
+          console.warn('SSE parse error:', e, jsonStr);
+        }
+      }
+    }
+  } catch (e) {
+    botBubble.innerHTML = `<span style="color:#f87171">Error: ${e.message}</span>`;
+  } finally {
+    isStreaming = false;
+    document.getElementById('send-btn').disabled = false;
+    // Remove typing indicator if still there
+    const ti = botBubble.querySelector('.typing-indicator');
+    if (ti) ti.remove();
+    scrollToBottom();
+  }
+}
+
+// ── DOM helpers ───────────────────────────────────────────────────────────────
+function appendMessage(role, content) {
+  const wrap = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const avatar = role === 'user' ? '🧑' : '🤖';
+  div.innerHTML = `
+    <div class="avatar">${avatar}</div>
+    <div class="bubble">${role === 'user' ? escapeHtml(content) : renderMarkdown(content)}</div>
+  `;
+  wrap.appendChild(div);
+  scrollToBottom();
+  return div.querySelector('.bubble');
+}
+
+function appendBotBubble(id) {
+  const wrap = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.id = id;
+  div.innerHTML = `
+    <div class="avatar">🤖</div>
+    <div class="bubble">
+      <div class="typing-indicator"><span></span><span></span><span></span></div>
+    </div>
+  `;
+  wrap.appendChild(div);
+  scrollToBottom();
+  return div.querySelector('.bubble');
+}
+
+function scrollToBottom() {
+  const el = document.getElementById('messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearChat() {
+  history = [];
+  clearImages();
+  const wrap = document.getElementById('messages');
+  wrap.innerHTML = `
+    <div class="welcome" id="welcome-screen">
+      <div class="welcome-icon">📚</div>
+      <h2>Welcome to AITutor</h2>
+      <p>Select your class and subject above, then ask me anything from your textbook.</p>
+    </div>
+  `;
+}
+
+// ── Images ────────────────────────────────────────────────────────────────────
+function clearImages() {
+  document.getElementById('image-panel').innerHTML = '<div id="no-images">Images related to the topic will appear here.</div>';
+}
+
+function renderImages(images) {
+  const panel = document.getElementById('image-panel');
+  panel.innerHTML = '';
+  const seen = new Set();
+  images.forEach(img => {
+    if (seen.has(img.id)) return;
+    seen.add(img.id);
+
+    const src = `${API}/api/images/${img.id}`;
+    const figLabel = img.fig_number ? `Fig. ${img.fig_number} · ` : '';
+    const card = document.createElement('div');
+    card.className = 'img-card';
+    card.innerHTML = `
+      <img src="${src}" alt="${escapeHtml(img.caption || 'Textbook image')}" loading="lazy" />
+      <div class="img-caption">
+        ${img.caption ? escapeHtml(img.caption) : `<em>${figLabel}Textbook figure</em>`}
+        <div class="img-page">Page ${img.page_number}</div>
+      </div>
+    `;
+    card.querySelector('img').addEventListener('click', () => openLightbox(src));
+    panel.appendChild(card);
+  });
+  if (!panel.children.length) {
+    panel.innerHTML = '<div id="no-images">No images for this topic.</div>';
+  }
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+
+// ── Markdown renderer (minimal) ───────────────────────────────────────────────
+function renderMarkdown(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^\* (.+)$/gm, '<li>$1</li>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+    .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/\n/g, '<br>')
+    .replace(/^(.+)$/, '<p>$1</p>');
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function apiFetch(path) {
+  const r = await fetch(`${API}${path}`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+function setStatus(ok) {
+  const dot = document.getElementById('status-dot');
+  dot.classList.toggle('connected', ok);
+  dot.title = ok ? 'API connected' : 'API unavailable';
+}
+
+init();
+</script>
+</body>
+</html>
