@@ -281,6 +281,14 @@ venv\Scripts\activate          # Windows
 pip install -r requirements.txt
 ```
 
+**Install MinerU separately** (it has heavy CUDA dependencies and is not in `requirements.txt`):
+
+```bash
+pip install magic-pdf[full] --extra-index-url https://wheels.myhloli.com
+```
+
+> MinerU model weights (~2–4 GB) are downloaded automatically on first use. Internet access is required for that first run only.
+
 Create a `.env` file in the project root (copy the block below and fill in your values):
 
 ```env
